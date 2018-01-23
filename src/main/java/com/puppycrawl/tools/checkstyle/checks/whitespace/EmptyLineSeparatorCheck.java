@@ -20,6 +20,7 @@
 package com.puppycrawl.tools.checkstyle.checks.whitespace;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 import com.puppycrawl.tools.checkstyle.StatelessCheck;
@@ -476,25 +477,25 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
      * @return true, if token has empty two lines before and allowMultipleEmptyLines is false
      */
     private boolean hasNotAllowedTwoEmptyLinesBefore(DetailAST token) {
-        return !allowMultipleEmptyLines && hasEmptyLineBefore(token)
-                && isPrePreviousLineEmpty(token);
-    }
-
-    /**
-     * Checks if a token has empty pre-previous line.
-     * @param token DetailAST token.
-     * @return true, if token has empty lines before.
-     */
-    private boolean isPrePreviousLineEmpty(DetailAST token) {
-        boolean result = false;
-        final int lineNo = token.getLineNo();
-        // 3 is the number of the pre-previous line because the numbering starts from zero.
-        final int number = 3;
-        if (lineNo >= number) {
-            final String prePreviousLine = getLines()[lineNo - number];
-            result = CommonUtils.isBlank(prePreviousLine);
+        if (!allowMultipleEmptyLines && hasEmptyLineBefore(token)) {
+            final List<EnumSet<LineFlag>> lineFlags = categorizeLines();
+            for (int i = token.getLineNo() - 2; i > 0; i--) {
+                final EnumSet<LineFlag> flags = lineFlags.get(i);
+                if (flags.size() == 1 && flags.contains(LineFlag.EMPTY)) {
+                    // 1 line above line being checked is empty.
+                    final EnumSet<LineFlag> previousLineFlags = lineFlags.get(i - 1);
+                    if (previousLineFlags.size() == 1 && previousLineFlags.contains(LineFlag.EMPTY)) {
+                        // 2 lines above the line being checked and after the previous token are empty, fail.
+                        return true;
+                    }
+                } else if (flags.contains(LineFlag.CODE)) {
+                    // We've hit some code, there aren't multiple adjacent empty lines.
+                    return false;
+                }
+            }
         }
-        return result;
+        // Either the multiple lines are allowed, or we reached the top of the file.
+        return false;
     }
 
     /**
@@ -549,13 +550,26 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
      */
     private boolean hasEmptyLineBefore(DetailAST token) {
         boolean result = false;
-        final int lineNo = token.getLineNo();
+        int lineNo = token.getLineNo();
         if (lineNo != 1) {
-            // [lineNo - 2] is the number of the previous line as the numbering starts from zero.
-            final String lineBefore = getLines()[lineNo - 2];
-            result = CommonUtils.isBlank(lineBefore);
+            final List<EnumSet<LineFlag>> flags = categorizeLines();
+            while (lineNo > 1) {
+                final EnumSet<LineFlag> lineFlags = flags.get(lineNo - 2);
+                if (lineFlags.size() == 1 && lineFlags.contains(LineFlag.EMPTY)) {
+                    // Line is empty.
+                    return true;
+                }
+                if (lineFlags.contains(LineFlag.CODE)) {
+                    // Line is code, so there is no empty line.
+                    return false;
+                }
+                if (lineFlags.contains(LineFlag.COMMENT)) {
+                    // Line is comment, keep looking backwards to see if there is an empty line before the comment.
+                    lineNo--;
+                }
+            }
         }
-        return result;
+        return false;
     }
 
     /**
@@ -593,4 +607,71 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
         return parentType == TokenTypes.CLASS_DEF;
     }
 
+    /**
+     * Parses the files lines and assigns them flags depending on whether the line is code, comment, and/or empty.
+     *
+     * @return list of flags for each line.
+     */
+    private List<EnumSet<LineFlag>> categorizeLines() {
+        /*
+         * Have to read the file forwards from beginning as multi-line comments can have multiple "/*" strings inside
+         * them, but are all closed by the first asterisk followed by a forward-slash.
+         * "/*" inside string literals need to be ignored.
+         * "/*" following // (single-line comment) need to be ignored.
+         */
+        final String[] lines = getLines();
+        final List<EnumSet<LineFlag>> lineFlags = new ArrayList<>(lines.length);
+        boolean inComment = false;
+        for (String line : lines) {
+            final EnumSet<LineFlag> set = EnumSet.of(inComment ? LineFlag.COMMENT : LineFlag.EMPTY);
+            boolean inString = false;
+            final int lineLength = line.length();
+            for (int charIndex = 0; charIndex < lineLength; charIndex++) {
+                final char c = line.charAt(charIndex);
+                final boolean hasNext = charIndex < lineLength - 1;
+                if (!Character.isWhitespace(c)) {
+                    // Line contains non-whitespace character, it isn't empty.
+                    set.remove(LineFlag.EMPTY);
+                }
+                if (inString && c == '\\') {
+                    // Skip next char, it won't terminate the string.
+                    charIndex++;
+                } else if (inString && c == '"') {
+                    // End of string.
+                    inString = false;
+                } else if (inComment && c == '*' && hasNext && line.charAt(charIndex + 1) == '/') {
+                    // End of multi-line comment.
+                    inComment = false;
+                    charIndex++;
+                } else if (c == '"') {
+                    // Start of string.
+                    inString = true;
+                    set.add(LineFlag.CODE);
+                } else if (c == '/' && hasNext && line.charAt(charIndex + 1) == '*') {
+                    // Start of multi-line comment.
+                    inComment = true;
+                    set.add(LineFlag.COMMENT);
+                    charIndex++;
+                } else if (!inComment && c == '/' && hasNext && line.charAt(charIndex + 1) == '/') {
+                    // Start of single-line comment, skip the rest of the line.
+                    set.add(LineFlag.COMMENT);
+                    break;
+                } else if (!inComment && !Character.isWhitespace(c)) {
+                    // Line contains non-whitespace character outside of comment, this is code.
+                    set.add(LineFlag.CODE);
+                }
+            }
+            lineFlags.add(set);
+        }
+        return lineFlags;
+    }
+
+    /**
+     * Flags that apply to source code file lines.
+     */
+    private enum LineFlag {
+        CODE,
+        COMMENT,
+        EMPTY
+    }
 }
