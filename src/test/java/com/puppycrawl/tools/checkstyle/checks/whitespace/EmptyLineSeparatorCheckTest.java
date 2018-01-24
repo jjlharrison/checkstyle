@@ -261,12 +261,24 @@ public class EmptyLineSeparatorCheckTest
         final DefaultConfiguration checkConfig = createModuleConfig(EmptyLineSeparatorCheck.class);
         checkConfig.addAttribute("allowMultipleEmptyLines", "false");
         final String[] expected = {
-                "10: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
-                "15: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
-                "22: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
-                "45: " + getCheckMessage(MSG_SHOULD_BE_SEPARATED, "METHOD_DEF"),
-                "48: " + getCheckMessage(MSG_SHOULD_BE_SEPARATED, "METHOD_DEF")
+            "10: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
+            "15: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
+            "22: " + getCheckMessage(MSG_MULTIPLE_LINES, "METHOD_DEF"),
+            "45: " + getCheckMessage(MSG_SHOULD_BE_SEPARATED, "METHOD_DEF"),
+            "48: " + getCheckMessage(MSG_SHOULD_BE_SEPARATED, "METHOD_DEF"),
         };
-        verify(checkConfig, getPath("InputEmptyLineSeparatorCommentsBetweenMembers.java"), expected);
+        verify(checkConfig,
+                getPath("InputEmptyLineSeparatorCommentsBetweenMembers.java"),
+                expected);
+    }
+
+    @Test
+    public void testCommentParsingWithInvalidSourceFile() throws Exception {
+        final DefaultConfiguration checkConfig = createModuleConfig(EmptyLineSeparatorCheck.class);
+        checkConfig.addAttribute("allowMultipleEmptyLines", "false");
+        final String[] expected = CommonUtils.EMPTY_STRING_ARRAY;
+        verify(checkConfig,
+                getPath("InputEmptyLineSeparatorCommentsParsingWithInvalidSource.txt"),
+                expected);
     }
 }
