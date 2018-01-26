@@ -808,7 +808,7 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
          * Checks whether the current character marks the start of a multi-line comment.
          */
         private void checkStartComment() {
-            if (currentChar() == '/' && lineHasNextChar() && nextChar() == '*') {
+            if (currentChar() == '/' && nextChar() == '*') {
                 // Start of multi-line comment.
                 currentLineFlags.add(LineFlag.COMMENT);
                 currentLineFlags.add(LineFlag.COMMENT_OPEN);
@@ -824,10 +824,12 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
          * Checks whether the current character marks the start of a single-line comment.
          */
         private void checkStartSingleLineComment() {
-            if (currentChar() == '/' && lineHasNextChar()
-                    && !currentLineFlags.contains(LineFlag.COMMENT_OPEN) && nextChar() == '/') {
-                // Start of single-line comment, skip the rest of the line.
+            if (currentChar() == '/' && !currentLineFlags.contains(LineFlag.COMMENT_OPEN)) {
+                // nextChar() can only be another slash for a valid Java file
+                // since it's not a multi-line comment.
                 currentLineFlags.add(LineFlag.COMMENT);
+
+                // Skip the rest of the line.
                 currentCharIndex = currentLine.length() - 1;
             }
             else {

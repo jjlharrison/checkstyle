@@ -1,8 +1,0 @@
-package com.puppycrawl.tools.checkstyle.checks.whitespace.emptylineseparator;
-
-public class InputEmptyLineSeparatorCommentsParsingWithInvalidSource {
-    // Following line is a single-slash that, when parsing may indicate the start of a "//" or "/*",
-    // but, in this case, this is an invalid slash at the end of the line that should be handled
-    // gracefully.
-    /
-}

@@ -271,14 +271,4 @@ public class EmptyLineSeparatorCheckTest
                 getPath("InputEmptyLineSeparatorCommentsBetweenMembers.java"),
                 expected);
     }
-
-    @Test
-    public void testCommentParsingWithInvalidSourceFile() throws Exception {
-        final DefaultConfiguration checkConfig = createModuleConfig(EmptyLineSeparatorCheck.class);
-        checkConfig.addAttribute("allowMultipleEmptyLines", "false");
-        final String[] expected = CommonUtils.EMPTY_STRING_ARRAY;
-        verify(checkConfig,
-                getPath("InputEmptyLineSeparatorCommentsParsingWithInvalidSource.txt"),
-                expected);
-    }
 }
