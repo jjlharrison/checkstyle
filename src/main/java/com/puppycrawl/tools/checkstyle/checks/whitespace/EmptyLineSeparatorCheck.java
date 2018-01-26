@@ -20,6 +20,7 @@
 package com.puppycrawl.tools.checkstyle.checks.whitespace;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -887,7 +888,7 @@ public class EmptyLineSeparatorCheck extends AbstractCheck {
          * @return the line flags.
          */
         public List<EnumSet<LineFlag>> getFlags() {
-            return flags;
+            return Collections.unmodifiableList(flags);
         }
 
     }
